@@ -1,7 +1,7 @@
 <?php
 $servername = "localhost";
 $username = "sjrail";
-//$password = "password";
+//$password = password;
 $dbname = "sjrail_db";
 
 $search = $_POST["search"];
@@ -34,9 +34,9 @@ if (mysqli_query($conn, $sql)) {
   echo "Error: " . $sql . "<br>" . mysqli_error($conn);
 }
 */
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+//ini_set('display_errors', 1);
+//ini_set('display_startup_errors', 1);
+//error_reporting(E_ALL);
 //echo $result->fetch_row()[1];
 
 $img = "resources/assets/sjrail_logo.png";
@@ -100,7 +100,17 @@ echo "<html>
 <body> 
 
 <form action=\"imagedisplay.php\" method=\"post\">
-Search: <input type=\"text\" name=\"search\"><br>
+
+Search: <input list=\"text\" name=\"search\"><br>
+ <datalist id=\"text\">
+    <option value=\"Camden\">
+    <option value=\"Glassboro\">
+    <option value=\"Winslow\">
+    <option value=\"Tower\">
+    <option value=\"Haddonfield\">
+
+
+ </datalist>
 <input type=\"submit\">
 </form>
 
