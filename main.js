@@ -1,4 +1,3 @@
-
 import GeoJSON from 'ol/format/GeoJSON';
 import Map from 'ol/Map';
 import VectorLayer from 'ol/layer/Vector';
@@ -8,7 +7,8 @@ import Fill from 'ol/style/Fill';
 import Stroke from 'ol/style/Stroke';
 import Style from 'ol/style/Style';
 
-
+import * as olProj from 'ol/proj';
+import Polygon from 'ol/geom/Polygon';
 import Circle from 'ol/geom/Circle';
 import Modify from 'ol/interaction/Modify';
 import Draw from 'ol/interaction/Draw';
@@ -22,11 +22,14 @@ import {Stamen, Vector as VectorSource} from 'ol/source';
 import {Icon, Style} from 'ol/style';
 import {Tile as TileLayer, Vector as VectorLayer} from 'ol/layer';
 import {fromLonLat} from 'ol/proj';
-import * as olProj from 'ol/proj';
+import {getVectorContext} from 'ol/render';
+
 
 import MousePosition from 'ol/control/MousePosition';
 import {createStringXY} from 'ol/coordinate';
 import {defaults as defaultControls} from 'ol/control';
+import Polygon from 'ol/geom/Polygon';
+import { containsXY } from 'ol/extent';
 
 
 const mousePositionControl = new MousePosition({
@@ -45,12 +48,44 @@ const source = new VectorSource({
 	
 });
 
+const fill = new Fill({
+  color: 'rgba(255,255,255,0.4)',
+});
+const stroke = new Stroke({
+  color: '#3399CC',
+  width: 3.25,
+});
+const selectPointStyle = new Style({
+  fill: new Fill({
+    color: '#eeeeee',
+  }),
+  stroke:  new Style({
+    image: new Circle({
+      fill: fill,
+      stroke: stroke,
+      radius: 5,
+    }),
+    fill: fill,
+    stroke: stroke,
+  }),
+});
 
 const client = new XMLHttpRequest();
 client.open('GET', 'traincoords.csv');
 client.onload = function () {
+
+ 
+
   const csv = client.responseText;
   const features = [];
+   // Geometries
+  // var point =  new ol.geom.Circle(ol.proj.transform([-96.1543889, 29.2542778], 'EPSG:4326', 'EPSG:3857'), 30000 );
+  // var circle = new ol.geom.Circle(ol.proj.transform([-96.1543889, 29.2542778], 'EPSG:4326', 'EPSG:3857'), 10000 );
+ 
+   // Features
+  // var pointFeature = new ol.Feature(point);
+  // var circleFeature = new ol.Feature(circle);
+
 
   let prevIndex = csv.indexOf('\n') + 1; // scan past the header line
 
@@ -59,19 +94,37 @@ client.onload = function () {
     const line = csv.substr(prevIndex, curIndex - prevIndex).split(',');
     prevIndex = curIndex + 1;
 
-    const coords = fromLonLat([parseFloat(line[4]), parseFloat(line[3])]);
+    const coords = fromLonLat([parseFloat(line[4]), parseFloat(line[3])], 'EPSG:3857');
     if (isNaN(coords[0]) || isNaN(coords[1])) {
       // guard against bad data
       continue;
     }
 
+
+    //var pointFeature = new Feature(new Circle(transform(coords, 'EPSG:4326', 'EPSG:3857'), 10000));
+
+    
+    //var circle = new Circle([-8169736.787559, 4917491.711695], 50000);
+    var circle = new Circle(coords, 2700);
+   // circle.setStyle(selectPointStyle);
+    //console.log(olProj.fromLonLat(coords, 'EPSG:3857'));
+    //var newcoords = 
+    //circle.transform(coords, 'EPSG:4326', 'EPSG:3857');
+    //circle.setCenter = newcoords;
+    var feature =     new Feature({
+     // id: parseFloat(line[0]) || 0,
+      id: "test",
+      yard: true,
+      NAME: (line[0]) || 0,
+      geometry: circle,
+    });
+
+    //feature.setId = "f";
+
     features.push(
-      new Feature({
-        mass: parseFloat(line[1]) || 0,
-        year: parseInt(line[2]) || 0,
-        geometry: new Point(coords),
-      })
+  feature
     );
+
   }
   source.addFeatures(features);
 };
@@ -101,10 +154,10 @@ const points = new VectorLayer({
 
 
   view: new View({
- center: [-8350000, 4890000],
-          zoom: 7.5,
-         // minZoom: 8.5,
-         // maxZoom: 13
+ center: [-8318000, 4890000],
+          zoom: 8,
+          minZoom: 8,
+          maxZoom: 13
   }),
 });
 const style = new Style({
@@ -124,8 +177,28 @@ const selectStyle = new Style({
 
 const status = document.getElementById('status');
 //const status2 = document.getElementById('status2');
-//document.body.appendChild('test');
+//document.body.append Child('test');
 
+map.on('click', function(event) {
+
+  map.forEachFeatureAtPixel(event.pixel, function(feature) {
+      if (feature.get('yard')) {
+     //  console.log(feature.get('yard'));
+              var url =  "http://sjrail.site.nfoservers.com/mediawiki-1.37.1/index.php/"+feature.get('NAME');
+              window.open(url);
+      }
+      
+      if (feature.get('NAME') == 'Camden') {
+                 var url =  "http://sjrail.site.nfoservers.com/mediawiki-1.37.1/index.php/West_Jersey_and_Seashore_Railroad#Camden_and_Atlantic_Railroad";
+                 window.open(url);
+         }
+         
+
+  });
+});
+
+
+let pixel = 200;
 let selected = null;
 let previous = "None";
 let oldInner = "None";
@@ -135,17 +208,28 @@ map.on('pointermove', function (e) {
     selected = null;
   }
 
+
+
+
   map.forEachFeatureAtPixel(e.pixel, function (f) {
     selected = f;
     selectStyle.getFill().setColor(f.get('COLOR') || '#eeeeee');
     f.setStyle(selectStyle);
+    
+    //console.log(f.get('id'))
+
     return true;
   });
 
 
   // if there is a way to select array by just using the selected.get name we could do this in one if statement.
+
+
   if (selected) {
     
+    //console.log(selected.get('name'))
+
+   // console.log("selected: "+selected.getId());
   //  $countyname = selected.get('NAME');
   //  previous = "Union";
     
@@ -165,10 +249,12 @@ map.on('pointermove', function (e) {
     if(document.getElementById("myImg") == null){
       var a = document.createElement("img");
       a.src = yardImg.get(Middlesex[0]);
-      a.width = 230;
-      a.height = 230;
+      a.width = pixel;
+      a.height = pixel;
       a.id = "myImg";
-      document.body.appendChild(a);
+      a.className = "soloimg";
+      document.getElementById("imgdiv").appendChild(a);
+      //  document.body.appendChild(a);
     }
     }
     else if(selected.get('NAME') == 'Hudson'){
@@ -177,25 +263,32 @@ map.on('pointermove', function (e) {
 
         var a = document.createElement("img");
         a.src = yardImg.get(Hudson[0]);
-        a.width = 230;
-        a.height = 230;
+        a.width = pixel;
+        a.height = pixel;
         a.id = "myImg";
-     //   a.textContent = "test";
-        document.body.appendChild(a);
+        a.className = "trioimg";
+        document.getElementById("imgdiv").appendChild(a);
+      //  document.body.appendChild(a);
       }
       if(document.getElementById("myImg2") == null){
         a.src = yardImg.get(Hudson[1]);
-        a.width = 230;
-        a.height = 230;
+        a.width = pixel;
+        a.className = "center";
+        a.height = pixel;
         a.id = "myImg2";
-        document.body.appendChild(a);
+        a.className = "trioimg";
+        document.getElementById("imgdiv").appendChild(a);
+      //  document.body.appendChild(a);
       }
       if(document.getElementById("myImg3") == null){
         a.src = yardImg.get(Hudson[2]);
-        a.width = 230;
-        a.height = 230;
+        a.width = pixel;
+        a.className = "center";
+        a.height = pixel;
         a.id = "myImg3";
-        document.body.appendChild(a);
+        a.className = "trioimg";
+        document.getElementById("imgdiv").appendChild(a);
+      //  document.body.appendChild(a);
         }
         }
         else if(selected.get('NAME') == 'Union'){
@@ -204,11 +297,12 @@ map.on('pointermove', function (e) {
     
             var a = document.createElement("img");
             a.src = yardImg.get(Union[0]);
-            a.width = 200;
-            a.height = 200;
+            a.width = pixel;
+            a.height = pixel;
             a.id = "myImg";
-         //   a.textContent = "test";
-            document.body.appendChild(a);
+            a.className = "soloimg";
+            document.getElementById("imgdiv").appendChild(a);
+            //  document.body.appendChild(a);
           }
 
             }
@@ -217,17 +311,21 @@ map.on('pointermove', function (e) {
         if(document.getElementById("myImg") == null){
           var a = document.createElement("img");
           a.src = yardImg.get(Bergen[0]);
-          a.width = 230;
-          a.height = 230;
+          a.width = pixel;
+          a.height = pixel;
           a.id = "myImg";
-          document.body.appendChild(a);
+          a.className = "duoimg";
+          document.getElementById("imgdiv").appendChild(a);
+        //  document.body.appendChild(a);
         }
         if(document.getElementById("myImg2") == null){
           a.src = yardImg.get(Bergen[1]);
-          a.width = 230;
-          a.height = 230;
+          a.width = pixel;
+          a.height = pixel;
           a.id = "myImg2";
-          document.body.appendChild(a);
+          a.className = "duoimg";
+          document.getElementById("imgdiv").appendChild(a);
+        //  document.body.appendChild(a);
           }
         }
       else if(selected.get('NAME') == 'Passaic'){
@@ -235,10 +333,12 @@ map.on('pointermove', function (e) {
         if(document.getElementById("myImg") == null){
           var a = document.createElement("img");
           a.src = yardImg.get(Passaic[0]);
-          a.width = 230;
-          a.height = 230;
+          a.width = pixel;
+          a.height = pixel;
           a.id = "myImg";
-          document.body.appendChild(a);
+          a.className = "soloimg";
+          document.getElementById("imgdiv").appendChild(a);
+          //  document.body.appendChild(a);
         }
         }
       else if(selected.get('NAME') == 'Essex'){
@@ -246,10 +346,12 @@ map.on('pointermove', function (e) {
       if(document.getElementById("myImg") == null){
         var a = document.createElement("img");
         a.src = yardImg.get(Essex[0]);
-        a.width = 230;
-        a.height = 230;
+        a.width = pixel;
+        a.height = pixel;
         a.id = "myImg";
-        document.body.appendChild(a);
+        a.className = "soloimg";
+        document.getElementById("imgdiv").appendChild(a);
+        //  document.body.appendChild(a);
       }
       }
       else if(selected.get('NAME') == 'Camden'){
@@ -257,10 +359,12 @@ map.on('pointermove', function (e) {
         if(document.getElementById("myImg") == null){
           var a = document.createElement("img");
           a.src = yardImg.get(Camden[0]);
-          a.width = 230;
-          a.height = 230;
+          a.width = pixel;
+          a.height = pixel;
           a.id = "myImg";
-          document.body.appendChild(a);
+          a.className = "soloimg";
+          document.getElementById("imgdiv").appendChild(a);
+          //  document.body.appendChild(a);
         }
         }
       else if(selected.get('NAME') == 'Morris'){
@@ -268,10 +372,12 @@ map.on('pointermove', function (e) {
         if(document.getElementById("myImg") == null){
           var a = document.createElement("img");
           a.src = yardImg.get(Morris[0]);
-          a.width = 230;
-          a.height = 230;
+          a.width = pixel;
+          a.height = pixel;
           a.id = "myImg";
-          document.body.appendChild(a);
+          a.className = "soloimg";
+          document.getElementById("imgdiv").appendChild(a);
+          //  document.body.appendChild(a);
         }
         }
       else if(selected.get('NAME') == 'Somerset'){
@@ -279,10 +385,12 @@ map.on('pointermove', function (e) {
         if(document.getElementById("myImg") == null){
           var a = document.createElement("img");
           a.src = yardImg.get(Somerset[0]);
-          a.width = 230;
-          a.height = 230;
+          a.width = pixel;
+          a.height = pixel;
           a.id = "myImg";
-          document.body.appendChild(a);
+          a.className = "soloimg";
+          document.getElementById("imgdiv").appendChild(a);
+          //  document.body.appendChild(a);
         }
         }
     else if(false){
@@ -291,6 +399,7 @@ map.on('pointermove', function (e) {
     }else {
 
       removeElements();
+
       status.innerHTML = selected.get('NAME');
       //status.innerHTML = '&nbsp;';
     
@@ -334,7 +443,7 @@ function removeElements(){
 }
 
 const arrayMap = new Map();
-arrayMap.set('Middlesex', 'County Yard, Port Reading Junction')
+arrayMap.set('Middlesex', 'County Yard')
 arrayMap.set('Hudson', 'Croxton Yard, Greenville Yard, North Bergen Yard')
 arrayMap.set('Union', 'Linden Yard')
 arrayMap.set('Bergen', 'Little Ferry Yard, Passaic Junction')
@@ -342,6 +451,7 @@ arrayMap.set('Passaic', 'North Hawthorne Station')
 arrayMap.set('Essex', 'Oak Island Yard')
 arrayMap.set('Camden', 'Pavonia Yard')
 arrayMap.set('Morris', 'Port Morris Junction')
+arrayMap.set('Somerset', 'Port Reading Junction')
 
 const Middlesex = ['County Yard'];
 const Hudson = ['Croxton Yard', 'Greenville Yard', 'North Bergen Yard'];
