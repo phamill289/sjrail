@@ -1,8 +1,8 @@
 <?php
-$servername = "localhost";
-$username = "sjrail";
-$password = "3foGQsFoAo";
-$dbname = "sjrail_db";
+$servername =;
+$username =;
+$password =;
+$dbname =;
 
 $search = $_POST["search"];
 
